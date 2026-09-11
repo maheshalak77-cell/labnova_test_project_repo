@@ -32,8 +32,12 @@ export function ProductCard({
           <i />
           {product.inStock ? "In Stock" : "Contact for availability"}
         </span>
-        <button className="product-title" onClick={onOpen}>
+        {/* <button className="product-title" onClick={onOpen}>
           {product.name}
+          <Icon name="arrow" size={18} />
+        </button> */}
+        <button className="product-title" onClick={onOpen}>
+          <span className="product-title__text">{product.name}</span>
           <Icon name="arrow" size={18} />
         </button>
         <p>{product.description}</p>

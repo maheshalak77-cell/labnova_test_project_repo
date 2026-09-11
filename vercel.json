@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/((?!assets/|favicon|lab-glassware-hero\\.webp|social-share\\.png).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

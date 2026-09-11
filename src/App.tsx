@@ -22,16 +22,36 @@ import { useCatalog } from "./lib/useCatalog";
 import { useAdminSession } from "./lib/useAdminSession";
 import type { Product } from "./lib/types";
 
+// function useRoute() {
+//   const getRoute = () => window.location.hash.replace(/^#/, "") || "/";
+//   const [route, setRoute] = useState(getRoute);
+//   useEffect(() => {
+//     const onChange = () => setRoute(getRoute());
+//     window.addEventListener("hashchange", onChange);
+//     return () => window.removeEventListener("hashchange", onChange);
+//   }, []);
+//   const navigate = (path: string) => {
+//     window.location.hash = path;
+//     window.scrollTo({ top: 0, behavior: "smooth" });
+//   };
+//   return { route, navigate };
+// }
+
 function useRoute() {
-  const getRoute = () => window.location.hash.replace(/^#/, "") || "/";
+  const getRoute = () => window.location.pathname || "/";
   const [route, setRoute] = useState(getRoute);
   useEffect(() => {
+    // popstate fires on browser back/forward — pushState (used below) does
+    // not fire it, so navigate() updates state itself right after pushing.
     const onChange = () => setRoute(getRoute());
-    window.addEventListener("hashchange", onChange);
-    return () => window.removeEventListener("hashchange", onChange);
+    window.addEventListener("popstate", onChange);
+    return () => window.removeEventListener("popstate", onChange);
   }, []);
   const navigate = (path: string) => {
-    window.location.hash = path;
+    if (path !== window.location.pathname) {
+      window.history.pushState({}, "", path);
+    }
+    setRoute(path);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   return { route, navigate };
