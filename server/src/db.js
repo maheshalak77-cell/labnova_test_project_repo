@@ -23,9 +23,25 @@
 // });
 
 // /**
-//  * Creates every table the app needs if it doesn't already exist.
-//  * This means a fresh MySQL database (local or Railway) is ready to use
-//  * the moment DB_* env vars point at it — no manual migration step required.
+//  * Adds a column to an existing table if it's missing. Safe to call every
+//  * startup — lets us evolve the schema (like adding quotes.type below)
+//  * without breaking databases that were already seeded before the change.
+//  */
+// async function ensureColumn(conn, table, column, definitionSql) {
+//   const [rows] = await conn.query(
+//     `SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS
+//      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+//     [table, column],
+//   );
+//   if (rows[0].cnt === 0) {
+//     await conn.query(`ALTER TABLE ${table} ADD COLUMN ${definitionSql}`);
+//   }
+// }
+
+// /**
+//  * Creates every table the app needs if it doesn't already exist, and
+//  * retrofits any columns added in later updates onto databases that were
+//  * already seeded before those columns existed.
 //  */
 // export async function ensureSchema() {
 //   const conn = await pool.getConnection();
@@ -70,11 +86,19 @@
 //         email VARCHAR(180) NOT NULL,
 //         phone VARCHAR(40) NULL,
 //         message TEXT NULL,
+//         type ENUM('quote','question') NOT NULL DEFAULT 'quote',
 //         status ENUM('new','contacted','closed') NOT NULL DEFAULT 'new',
 //         email_sent TINYINT(1) NOT NULL DEFAULT 0,
 //         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 //       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 //     `);
+//     // Retrofit for databases that were seeded before "type" existed.
+//     await ensureColumn(
+//       conn,
+//       "quotes",
+//       "type",
+//       "type ENUM('quote','question') NOT NULL DEFAULT 'quote' AFTER message",
+//     );
 
 //     await conn.query(`
 //       CREATE TABLE IF NOT EXISTS quote_items (
@@ -97,6 +121,7 @@
 //     conn.release();
 //   }
 // }
+
 import mysql from "mysql2/promise";
 import "dotenv/config";
 
@@ -171,12 +196,34 @@ export async function ensureSchema() {
         features JSON NOT NULL,
         applications JSON NOT NULL,
         is_active TINYINT(1) NOT NULL DEFAULT 1,
+        in_stock TINYINT(1) NOT NULL DEFAULT 1,
+        hide_price TINYINT(1) NOT NULL DEFAULT 0,
+        is_featured TINYINT(1) NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         CONSTRAINT fk_products_category FOREIGN KEY (category_id)
           REFERENCES categories(id) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+    // Retrofit for databases that were seeded before these columns existed.
+    await ensureColumn(
+      conn,
+      "products",
+      "in_stock",
+      "in_stock TINYINT(1) NOT NULL DEFAULT 1 AFTER is_active",
+    );
+    await ensureColumn(
+      conn,
+      "products",
+      "hide_price",
+      "hide_price TINYINT(1) NOT NULL DEFAULT 0 AFTER in_stock",
+    );
+    await ensureColumn(
+      conn,
+      "products",
+      "is_featured",
+      "is_featured TINYINT(1) NOT NULL DEFAULT 0 AFTER hide_price",
+    );
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS quotes (
